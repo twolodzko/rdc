@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 num-bigint = "0.5.1"
-rug = "1.30.0"
 rustyline = "18.0.1"
 
 [profile.release]
