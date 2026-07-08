@@ -1,4 +1,30 @@
+# `dc` implemented in Rust
 
+The [desk calculator `dc`] re-implemented in Rust. It supports unlimited precision arithmetic using
+[fixed-point numbers] representation. Like `dc` it uses reverse-polish notation.
 
-https://linux.die.net/man/1/dc
-https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html
+## Commands
+
+T subset of `ds`'s commands is implemented:
+
+* `+`, `-`, `*`, `/`, `%` (reminder) arithmetic operations.
+* `^` is exponentiation, where the base needs to be an integer.
+* `v` square root.
+* `d` duplicate the last value on the stack.
+* `c` clear the stack.
+* `r` reverse the order of the two last values on the stack.
+* `p` pop the last value from the stack and print it followed by a newline character.
+* `n` like above, but without the newline.
+* `f` print whole stack (mostly for debugging).
+* `k` pop the last value from the stack and use it to set the precision.
+* `s`*r* pop the last value from the stack and save it to the record indexed by *r* (ASCII character).
+* `l`*r* copy the value from the record *r* and push it to the top of the stack.
+* `x` pop the last value from the stack and execute it as a command, if it is a number, push it to the stack.
+* `>`*r*, `<`*r*, `=`*r*, `!>`*r*, `!<`*r*, `!=`*r* pop two values from the stack, compare them and conditionally execute the value at the record *r* as a command.
+* `[hello, world!]` is a string value equal to "hello, world!".
+
+See also the [`dc` manual].
+
+[desk calculator `dc`]: https://en.wikipedia.org/wiki/Dc_(computer_program)
+[fixed-point numbers]: https://en.wikipedia.org/wiki/Fixed-point_arithmetic
+[`dc` manual]: https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html
