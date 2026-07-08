@@ -1,9 +1,19 @@
-test: lint build
+test: lint build unit-test
+
+unit-test: build-dev
+    cargo test
     bats tests.bats
+
+fuzzy-test: build-dev
+    bash fuzzy_test.sh > fuzzy_test.log
+    tail -n 2 fuzzy_test.log
 
 build:
     cargo build --release
     cp target/release/rdc .
+
+build-dev:
+    cargo build --profile dev
 
 lint:
     cargo fmt
@@ -14,6 +24,12 @@ install: lint
 
 repl:
     cargo run --
+
+compare cmd: build-dev
+    #!/bin/bash
+    set -e
+    echo "dc -e '{{ cmd }}'               # => $(dc -e '{{ cmd }}')"
+    echo "./target/debug/rdc '{{ cmd }}'  # => $(./target/debug/rdc '{{ cmd }}')"
 
 clean:
     rm -rf ./target
