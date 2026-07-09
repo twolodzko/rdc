@@ -148,16 +148,35 @@ BINARY="./target/debug/rdc"
 	[ "$status" -eq 0 ]
 }
 
+@test "Execute and continue" {
+	run $BINARY '[[everything]n]sa [[ is]n]sb 0 0=a 1 2!=b [ fine]p'
+   [ "$output" = "everything is fine" ]
+	[ "$status" -eq 0 ]
+}
+
 @test "Conditional call on 2 > 1" {
-	run $BINARY '[[ok\]p]sa 1 2>a'
+	run $BINARY '[[ok]p]sa 1 2>a'
+   [ "$output" = "ok" ]
+	[ "$status" -eq 0 ]
+}
+
+@test "Conditional call on 1 != 2" {
+	run $BINARY '[[ok]p]sa 1 2!=a'
    [ "$output" = "ok" ]
 	[ "$status" -eq 0 ]
 }
 
 @test "Conditional call on 8/2 = 3+1" {
-	run $BINARY '[[also ok\]p]sa 8 2 / 3 1 + =a'
+	run $BINARY '[[also ok]p]sa 8 2 / 3 1 + =a'
    [ "$output" = "also ok" ]
 	[ "$status" -eq 0 ]
+}
+
+@test "Infinite loop does not lead to stack overflow" {
+	# run `yes` implemented in dc
+	run timeout 1 $BINARY '[[yes]plyx]sylyx'
+	# finished with the timeout error code
+	[ "$status" -eq 124 ]
 }
 
 @test "Error on printing empty stack" {

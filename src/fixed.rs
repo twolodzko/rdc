@@ -193,29 +193,29 @@ impl PartialOrd for Fixed {
 }
 
 impl From<&[u8]> for Fixed {
-    fn from(value: &[u8]) -> Self {
-        let mut acc = BigInt::ZERO;
+    fn from(bytes: &[u8]) -> Self {
+        let mut value = BigInt::ZERO;
         let mut precision = 0;
-        let mut decimal = BigInt::ONE;
-        let mut i = value.len();
+        let mut base = BigInt::ONE;
+        let mut i = bytes.len();
         while i != 0 {
             i -= 1;
-            match value[i] {
+            match bytes[i] {
                 b'.' => {
-                    precision = value.len() - i - 1;
+                    precision = bytes.len() - i - 1;
                     break;
                 }
                 b'0' => {}
-                v => acc += &decimal * (v - b'0'),
+                v => value += &base * (v - b'0'),
             }
-            decimal *= 10;
+            base *= 10;
         }
         while i != 0 {
             i -= 1;
-            acc += &decimal * (value[i] - b'0');
-            decimal *= 10;
+            value += &base * (bytes[i] - b'0');
+            base *= 10;
         }
-        Fixed::new(acc, precision as u32)
+        Fixed::new(value, precision as u32)
     }
 }
 

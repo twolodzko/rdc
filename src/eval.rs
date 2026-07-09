@@ -13,329 +13,413 @@ macro_rules! error {
     };
 }
 
-macro_rules! math {
-    ( $memory:tt, $op:tt, $fail:tt ) => {
-        if let Some(rhs) = $memory.stack.pop() && let Some(lhs) = $memory.stack.last_mut() {
-            if let (Number(lhs), Number(ref rhs)) = (lhs, rhs) {
-                *lhs = &*lhs $op rhs
-            } else {
-                error!(Error::NaN, $fail);
-            }
-        } else {
-            error!(Error::EmptyStack, $fail);
-        }
-    };
-}
-
-macro_rules! cmp {
-    ( $memory:tt, $op:tt, $branch:tt, $out:tt, $fail:tt ) => {
-        if let Some(rhs) = $memory.stack.pop() && let Some(lhs) = $memory.stack.pop() {
+impl Memory {
+    fn two_numbers(&mut self) -> Result<(Fixed, Fixed), Error> {
+        if let Some(rhs) = self.stack.pop()
+            && let Some(lhs) = self.stack.pop()
+        {
+            use Value::Number;
             if let (Number(lhs), Number(rhs)) = (lhs, rhs) {
-                if lhs $op rhs {
-                   match &$branch {
-                        Number(_) => $memory.stack.push($branch),
-                        String(s) => if $fail && !eval(s, $memory, $out, true) {
-                            return false;
-                        },
-                    }
-                }
+                Ok((lhs, rhs))
             } else {
-                error!(Error::NaN, $fail);
+                Err(Error::NaN)
             }
         } else {
-            error!(Error::EmptyStack, $fail);
+            Err(Error::EmptyStack)
         }
-    };
+    }
 }
 
 pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool) -> bool {
     use Value::*;
-    let mut i = 0;
-    while i < script.len() {
-        // dbg!(&memory.stack);
-        match &script[i] {
-            // basic arithmetics
-            b'+' => math!(memory, +, fail),
-            b'-' => math!(memory, -, fail),
-            b'*' => math!(memory, *, fail),
-            b'/' => {
-                if let Some(rhs) = memory.stack.pop()
-                    && let Some(lhs) = memory.stack.last_mut()
-                {
-                    if let (Number(lhs), Number(ref rhs)) = (lhs, rhs) {
-                        if rhs.is_zero() {
-                            error!(Error::ZeroDivision, fail);
+    let mut queue = vec![(script.to_vec(), 0)];
+    while let Some((mut cmds, mut i)) = queue.pop() {
+        while i < cmds.len() {
+            /// execute the macro at the given register address
+            macro_rules! exec {
+                ( $addr:tt ) => {
+                    match $addr {
+                        Number(_) => memory.stack.push($addr),
+                        String(s) => {
+                            i += 1;
+                            if i < cmds.len() {
+                                // only push to queue if there's anything more to run
+                                queue.push((cmds, i));
+                            }
+                            i = 0;
+                            cmds = s;
+                            continue;
                         }
-                        *lhs = &*lhs / rhs;
-                    } else {
-                        error!(Error::NaN, fail);
                     }
-                } else {
-                    error!(Error::EmptyStack, fail);
-                }
-            }
-            b'%' => {
-                if let Some(rhs) = memory.stack.pop()
-                    && let Some(lhs) = memory.stack.last_mut()
-                {
-                    if let (Number(lhs), Number(ref rhs)) = (lhs, rhs) {
-                        if rhs.is_zero() {
-                            error!(Error::ZeroDivision, fail);
-                        }
-                        *lhs = &*lhs % rhs;
-                    } else {
-                        error!(Error::NaN, fail);
-                    }
-                } else {
-                    error!(Error::EmptyStack, fail);
-                }
-            }
-            b'^' => {
-                if let Some(rhs) = memory.stack.pop()
-                    && let Some(lhs) = memory.stack.last_mut()
-                {
-                    if let (Number(lhs), Number(rhs)) = (lhs, rhs) {
-                        if let Some(val) = lhs.checked_pow(&rhs) {
-                            *lhs = val;
-                        } else {
-                            error!(Error::InvalidExponent, fail);
-                        }
-                    } else {
-                        error!(Error::NaN, fail);
-                    }
-                } else {
-                    error!(Error::EmptyStack, fail);
-                }
-            }
-            // sqrt
-            b'v' => {
-                if let Some(val) = memory.stack.last_mut() {
-                    if let Number(val) = val {
-                        if val.is_negative() {
-                            error!(Error::NegativeNumber, fail);
-                        } else {
-                            *val = val.sqrt();
-                        }
-                    } else {
-                        error!(Error::NaN, fail);
-                    }
-                } else {
-                    error!(Error::EmptyStack, fail);
                 };
             }
-            // duplicate
-            b'd' => {
-                if let Some(val) = memory.stack.last().cloned() {
-                    memory.stack.push(val);
-                } else {
-                    error!(Error::EmptyStack, fail);
-                };
-            }
-            // clear
-            b'c' => memory.stack.clear(),
-            // reverse
-            b'r' => {
-                let n = memory.stack.len();
-                if n > 1 {
-                    memory.stack.swap(n - 2, n - 1);
-                } else {
-                    error!(Error::EmptyStack, fail);
-                }
-            }
-            // println
-            b'p' => {
-                if let Some(val) = memory.stack.pop() {
-                    let Ok(_) = writeln!(out, "{}", val) else {
-                        std::process::exit(74);
+
+            match &cmds[i] {
+                // basic arithmetics
+                b'+' => {
+                    match memory.two_numbers() {
+                        Ok((ref lhs, ref rhs)) => memory.stack.push(Number(lhs + rhs)),
+                        Err(err) => {
+                            error!(err, fail);
+                        }
                     };
-                } else {
-                    error!(Error::EmptyStack, fail);
                 }
-            }
-            // print
-            b'n' => {
-                if let Some(val) = memory.stack.pop() {
-                    let Ok(_) = write!(out, "{}", val) else {
-                        std::process::exit(74);
+                b'-' => {
+                    match memory.two_numbers() {
+                        Ok((ref lhs, ref rhs)) => memory.stack.push(Number(lhs - rhs)),
+                        Err(err) => {
+                            error!(err, fail);
+                        }
                     };
-                } else {
-                    error!(Error::EmptyStack, fail);
                 }
-            }
-            // print stack
-            b'f' => {
-                if !memory.stack.is_empty() {
-                    let mut s = memory
-                        .stack
-                        .iter()
-                        .fold(std::string::String::new(), |acc, v| {
-                            acc + &v.to_string() + " "
-                        });
-                    s.pop();
-                    if writeln!(out, "{}", s).is_err() {
-                        std::process::exit(74);
-                    }
+                b'*' => {
+                    match memory.two_numbers() {
+                        Ok((ref lhs, ref rhs)) => memory.stack.push(Number(lhs * rhs)),
+                        Err(err) => {
+                            error!(err, fail);
+                        }
+                    };
                 }
-            }
-            // set precision
-            b'k' => {
-                if let Some(Number(n)) = memory.stack.pop() {
-                    unsafe { PRECISION = n.to_u32_saturating() }
-                } else {
-                    error!(Error::EmptyStack, fail);
+                b'/' => {
+                    match memory.two_numbers() {
+                        Ok((ref lhs, ref rhs)) => {
+                            if rhs.is_zero() {
+                                error!(Error::ZeroDivision, fail);
+                            } else {
+                                memory.stack.push(Number(lhs / rhs))
+                            }
+                        }
+                        Err(err) => {
+                            error!(err, fail);
+                        }
+                    };
                 }
-            }
-            // save record
-            b's' => {
-                i += 1;
-                if i < script.len() {
-                    if let Some(v) = memory.stack.pop() {
-                        memory.register[script[i] as usize] = v;
+                b'%' => {
+                    match memory.two_numbers() {
+                        Ok((ref lhs, ref rhs)) => {
+                            if rhs.is_zero() {
+                                error!(Error::ZeroDivision, fail);
+                            } else {
+                                memory.stack.push(Number(lhs % rhs))
+                            }
+                        }
+                        Err(err) => {
+                            error!(err, fail);
+                        }
+                    };
+                }
+                b'^' => {
+                    if let Some(rhs) = memory.stack.pop()
+                        && let Some(lhs) = memory.stack.last_mut()
+                    {
+                        if let (Number(lhs), Number(rhs)) = (lhs, rhs) {
+                            if let Some(val) = lhs.checked_pow(&rhs) {
+                                *lhs = val;
+                            } else {
+                                error!(Error::InvalidExponent, fail);
+                            }
+                        } else {
+                            error!(Error::NaN, fail);
+                        }
                     } else {
                         error!(Error::EmptyStack, fail);
                     }
-                } else {
-                    error!(Error::EoF, fail);
                 }
-            }
-            // load record
-            b'l' => {
-                i += 1;
-                if i < script.len() {
-                    let v = memory.register[script[i] as usize].clone();
-                    memory.stack.push(v);
-                } else {
-                    error!(Error::EoF, fail);
-                }
-            }
-            // execute
-            b'x' => {
-                if let Some(v) = memory.stack.pop() {
-                    match &v {
-                        Number(_) => memory.stack.push(v),
-                        String(s) => {
-                            if fail && !eval(s, memory, out, true) {
-                                return false;
+                // sqrt
+                b'v' => {
+                    if let Some(val) = memory.stack.last_mut() {
+                        if let Number(val) = val {
+                            if val.is_negative() {
+                                error!(Error::NegativeNumber, fail);
+                            } else {
+                                *val = val.sqrt();
                             }
+                        } else {
+                            error!(Error::NaN, fail);
                         }
-                    }
-                } else {
-                    error!(Error::EmptyStack, fail);
-                }
-            }
-            // comparisons
-            b'>' => {
-                i += 1;
-                if i < script.len() {
-                    let branch = memory.register[script[i] as usize].clone();
-                    cmp!(memory, <, branch, out, fail);
-                } else {
-                    error!(Error::EoF, fail);
-                }
-            }
-            b'<' => {
-                i += 1;
-                if i < script.len() {
-                    let branch = memory.register[script[i] as usize].clone();
-                    cmp!(memory, >, branch, out, fail);
-                } else {
-                    error!(Error::EoF, fail);
-                }
-            }
-            b'=' => {
-                i += 1;
-                if i < script.len() {
-                    let branch = memory.register[script[i] as usize].clone();
-                    cmp!(memory, ==, branch, out, fail);
-                } else {
-                    error!(Error::EoF, fail);
-                }
-            }
-            b'!' => {
-                if i + 2 < script.len() {
-                    let branch = memory.register[script[i + 2] as usize].clone();
-                    match script[i + 1] {
-                        b'>' => cmp!(memory, >=, branch, out, fail),
-                        b'<' => cmp!(memory, <=, branch, out, fail),
-                        b'=' => cmp!(memory, !=, branch, out, fail),
-                        c => {
-                            error!(Error::Unexpected(c), fail);
-                        }
-                    }
-                } else {
-                    error!(Error::EoF, fail);
-                }
-                i += 2;
-            }
-            // read string
-            b'[' => {
-                i += 1;
-                let mut acc = Vec::new();
-                while i < script.len() {
-                    let c = match script[i] {
-                        b']' => break,
-                        b'\\' => {
-                            i += 1;
-                            match script[i] {
-                                b'n' => b'\n',
-                                b'r' => b'\r',
-                                b't' => b'\t',
-                                b'0' => b'\0',
-                                c => c,
-                            }
-                        }
-                        c => c,
+                    } else {
+                        error!(Error::EmptyStack, fail);
                     };
-                    acc.push(c);
-                    i += 1;
                 }
-                let s = String(acc);
-                memory.stack.push(s);
-            }
-            // comment
-            b'#' => {
-                while i < script.len() && script[i] != b'\n' && script[i] != b'\r' {
-                    i += 1;
+                // duplicate
+                b'd' => {
+                    if let Some(val) = memory.stack.last().cloned() {
+                        memory.stack.push(val);
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    };
                 }
-                // in case of \n\r or \r\n, the next character would be ignored as whitespace
-            }
-            // number
-            c if *c == b'_' || *c == b'.' || c.is_ascii_digit() => {
-                let mut negate = false;
-                if *c == b'_' {
-                    negate = true;
-                    i += 1;
-                }
-                let start = i;
-                while i < script.len() {
-                    if !script[i].is_ascii_digit() {
-                        break;
+                // clear
+                b'c' => memory.stack.clear(),
+                // reverse
+                b'r' => {
+                    let n = memory.stack.len();
+                    if n > 1 {
+                        memory.stack.swap(n - 2, n - 1);
+                    } else {
+                        error!(Error::EmptyStack, fail);
                     }
-                    i += 1;
                 }
-                if i < script.len() && script[i] == b'.' {
+                // println
+                b'p' => {
+                    if let Some(val) = memory.stack.pop() {
+                        let Ok(_) = writeln!(out, "{}", val) else {
+                            std::process::exit(74);
+                        };
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // print
+                b'n' => {
+                    if let Some(val) = memory.stack.pop() {
+                        let Ok(_) = write!(out, "{}", val) else {
+                            std::process::exit(74);
+                        };
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // print stack
+                b'f' => {
+                    if !memory.stack.is_empty() {
+                        let mut s = memory
+                            .stack
+                            .iter()
+                            .fold(std::string::String::new(), |acc, v| {
+                                acc + &v.to_string() + " "
+                            });
+                        s.pop();
+                        if writeln!(out, "{}", s).is_err() {
+                            std::process::exit(74);
+                        }
+                    }
+                }
+                // set precision
+                b'k' => {
+                    if let Some(Number(n)) = memory.stack.pop() {
+                        unsafe { PRECISION = n.to_u32_saturating() }
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // save record
+                b's' => {
                     i += 1;
-                    while i < script.len() {
-                        if !script[i].is_ascii_digit() {
+                    if i < cmds.len() {
+                        if let Some(v) = memory.stack.pop() {
+                            memory.register[cmds[i] as usize] = v;
+                        } else {
+                            error!(Error::EmptyStack, fail);
+                        }
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                // load record
+                b'l' => {
+                    i += 1;
+                    if i < cmds.len() {
+                        let v = memory.register[cmds[i] as usize].clone();
+                        memory.stack.push(v);
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                // execute
+                b'x' => {
+                    if let Some(v) = memory.stack.pop() {
+                        exec!(v);
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // comparisons
+                b'>' => {
+                    i += 1;
+                    if i < cmds.len() {
+                        let branch = memory.register[cmds[i] as usize].clone();
+                        match memory.two_numbers() {
+                            Ok((ref lhs, ref rhs)) => {
+                                if lhs < rhs {
+                                    exec!(branch)
+                                }
+                            }
+                            Err(err) => {
+                                error!(err, fail);
+                            }
+                        };
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                b'<' => {
+                    i += 1;
+                    if i < cmds.len() {
+                        let branch = memory.register[cmds[i] as usize].clone();
+                        match memory.two_numbers() {
+                            Ok((ref lhs, ref rhs)) => {
+                                if lhs > rhs {
+                                    exec!(branch)
+                                }
+                            }
+                            Err(err) => {
+                                error!(err, fail);
+                            }
+                        };
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                b'=' => {
+                    i += 1;
+                    if i < cmds.len() {
+                        let branch = memory.register[cmds[i] as usize].clone();
+                        match memory.two_numbers() {
+                            Ok((ref lhs, ref rhs)) => {
+                                if lhs == rhs {
+                                    exec!(branch)
+                                }
+                            }
+                            Err(err) => {
+                                error!(err, fail);
+                            }
+                        };
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                b'!' => {
+                    if i + 2 < cmds.len() {
+                        let branch = memory.register[cmds[i + 2] as usize].clone();
+                        match cmds[i + 1] {
+                            b'>' => {
+                                i += 2;
+                                match memory.two_numbers() {
+                                    Ok((ref lhs, ref rhs)) => {
+                                        if lhs >= rhs {
+                                            exec!(branch)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        error!(err, fail);
+                                    }
+                                };
+                            }
+                            b'<' => {
+                                i += 2;
+                                match memory.two_numbers() {
+                                    Ok((ref lhs, ref rhs)) => {
+                                        if lhs <= rhs {
+                                            exec!(branch)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        error!(err, fail);
+                                    }
+                                };
+                            }
+                            b'=' => {
+                                i += 2;
+                                match memory.two_numbers() {
+                                    Ok((ref lhs, ref rhs)) => {
+                                        if lhs != rhs {
+                                            exec!(branch)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        error!(err, fail);
+                                    }
+                                };
+                            }
+                            c => {
+                                error!(Error::Unexpected(c), fail);
+                            }
+                        }
+                    } else {
+                        error!(Error::EoF, fail);
+                    }
+                }
+                // read string
+                b'[' => {
+                    i += 1;
+                    let mut brackets = 1;
+                    let mut acc = Vec::new();
+                    while i < cmds.len() {
+                        let mut c = cmds[i];
+                        match c {
+                            b'[' => {
+                                brackets += 1;
+                            }
+                            b']' => {
+                                brackets -= 1;
+                                if brackets == 0 {
+                                    break;
+                                }
+                            }
+                            b'\\' => {
+                                i += 1;
+                                c = match cmds[i] {
+                                    b'n' => b'\n',
+                                    b'r' => b'\r',
+                                    b't' => b'\t',
+                                    b'0' => b'\0',
+                                    c => c,
+                                }
+                            }
+                            _ => {}
+                        };
+                        acc.push(c);
+                        i += 1;
+                    }
+                    let s = String(acc);
+                    memory.stack.push(s);
+                }
+                // comment
+                b'#' => {
+                    while i < cmds.len() && cmds[i] != b'\n' && cmds[i] != b'\r' {
+                        i += 1;
+                    }
+                    // in case of \n\r or \r\n, the next character would be ignored as whitespace
+                }
+                // number
+                c if *c == b'_' || *c == b'.' || c.is_ascii_digit() => {
+                    let mut negate = false;
+                    if *c == b'_' {
+                        negate = true;
+                        i += 1;
+                    }
+                    let start = i;
+                    while i < cmds.len() {
+                        if !cmds[i].is_ascii_digit() {
                             break;
                         }
                         i += 1;
                     }
+                    if i < cmds.len() && cmds[i] == b'.' {
+                        i += 1;
+                        while i < cmds.len() {
+                            if !cmds[i].is_ascii_digit() {
+                                break;
+                            }
+                            i += 1;
+                        }
+                    }
+                    let mut val = Fixed::from(&cmds[start..i]);
+                    if negate {
+                        val = val.neg();
+                    }
+                    memory.stack.push(Number(val));
+                    continue;
                 }
-                let mut val = Fixed::from(&script[start..i]);
-                if negate {
-                    val = val.neg();
+                c if c.is_ascii_whitespace() => {}
+                // invalid
+                c => {
+                    error!(Error::Unexpected(*c), fail);
                 }
-                memory.stack.push(Number(val));
-                continue;
             }
-            c if c.is_ascii_whitespace() => {}
-            // invalid
-            c => {
-                error!(Error::Unexpected(*c), fail);
-            }
+            i += 1;
         }
-        i += 1;
     }
     true
 }
