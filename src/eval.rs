@@ -382,8 +382,10 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                     }
                     // in case of \n\r or \r\n, the next character would be ignored as whitespace
                 }
+                // quit
+                b'q' => return true,
                 // number
-                c if *c == b'_' || *c == b'.' || c.is_ascii_digit() => {
+                c if *c == b'_' || *c == b'.' || is_hex_digit(*c) => {
                     let mut negate = false;
                     if *c == b'_' {
                         negate = true;
@@ -391,7 +393,7 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                     }
                     let start = i;
                     while i < cmds.len() {
-                        if !cmds[i].is_ascii_digit() {
+                        if !is_hex_digit(cmds[i]) {
                             break;
                         }
                         i += 1;
@@ -399,13 +401,13 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                     if i < cmds.len() && cmds[i] == b'.' {
                         i += 1;
                         while i < cmds.len() {
-                            if !cmds[i].is_ascii_digit() {
+                            if !is_hex_digit(cmds[i]) {
                                 break;
                             }
                             i += 1;
                         }
                     }
-                    let mut val = Fixed::from(&cmds[start..i]);
+                    let mut val = Fixed::parse(&cmds[start..i]);
                     if negate {
                         val = val.neg();
                     }
@@ -447,4 +449,9 @@ impl std::fmt::Display for Error {
             Unexpected(c) => write!(f, "unexpected character: {}", *c as char),
         }
     }
+}
+
+/// Check if the string byte is a hexadecimal digit
+fn is_hex_digit(c: u8) -> bool {
+    c.is_ascii_digit() || matches!(c, b'A'..=b'F')
 }

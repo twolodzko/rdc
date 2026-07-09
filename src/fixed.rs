@@ -24,6 +24,31 @@ impl Fixed {
         Fixed { value, precision }
     }
 
+    pub fn parse(bytes: &[u8]) -> Fixed {
+        let mut value = BigInt::ZERO;
+        let mut precision = 0;
+        let mut base = BigInt::ONE;
+        let mut i = bytes.len();
+        while i != 0 {
+            i -= 1;
+            match bytes[i] {
+                b'.' => {
+                    precision = (bytes.len() - i - 1) as u32;
+                    break;
+                }
+                b'0' => {}
+                v => value += &base * to_digit(v),
+            }
+            base *= 10;
+        }
+        while i != 0 {
+            i -= 1;
+            value += &base * to_digit(bytes[i]);
+            base *= 10;
+        }
+        Fixed::new(value, precision)
+    }
+
     pub fn sqrt(&self) -> Fixed {
         if self.value == BigInt::ZERO {
             return self.clone();
@@ -32,7 +57,7 @@ impl Fixed {
         let scaling = BigInt::from(10).pow(prec);
 
         // the decimal number is represented by a fractional one x/n
-        // where n is the scaling factor 10^p and p is the precission (number of decimal points)
+        // where n is the scaling factor 10^p and p is the precision (number of decimal points)
         // and stored as an integer y=(x/n)*n
         // by the property of square root: sqrt(ab) = sqrt(a) * sqrt(b)
         // so if we want to keep the precision to be p, we need to take
@@ -161,6 +186,11 @@ impl Rem<&Fixed> for &Fixed {
     fn rem(self, rhs: &Fixed) -> Self::Output {
         // same as: Sr dlr/ Lr*-
         // a - n * (a/n)
+
+        // TODO: From dc manual:
+        // Remaindering is equivalent to 1) Computing a/b to current scale,
+        // and 2) Using the result of step 1 to calculate a-(a/b)*b to scale max(scale+scale(b),scale(a)).
+
         let div = self / rhs;
         let mul = rhs * &div;
         self - &mul
@@ -192,33 +222,6 @@ impl PartialOrd for Fixed {
     }
 }
 
-impl From<&[u8]> for Fixed {
-    fn from(bytes: &[u8]) -> Self {
-        let mut value = BigInt::ZERO;
-        let mut precision = 0;
-        let mut base = BigInt::ONE;
-        let mut i = bytes.len();
-        while i != 0 {
-            i -= 1;
-            match bytes[i] {
-                b'.' => {
-                    precision = bytes.len() - i - 1;
-                    break;
-                }
-                b'0' => {}
-                v => value += &base * (v - b'0'),
-            }
-            base *= 10;
-        }
-        while i != 0 {
-            i -= 1;
-            value += &base * (bytes[i] - b'0');
-            base *= 10;
-        }
-        Fixed::new(value, precision as u32)
-    }
-}
-
 impl std::fmt::Display for Fixed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.precision > 0 {
@@ -243,6 +246,15 @@ impl Default for Fixed {
     }
 }
 
+/// Convert string byte to digit in hexadecimal notation, all other values are zeros
+fn to_digit(c: u8) -> u8 {
+    match c {
+        b'0'..=b'9' => c - b'0',
+        b'A'..=b'F' => c - b'A' + 10,
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Fixed;
@@ -256,7 +268,7 @@ mod tests {
     #[test_case("000000"; "multiple")]
     #[test_case("000000.000"; "multiple with middle dot")]
     fn parse_zeros(s: &str) {
-        let val = Fixed::from(s.as_bytes());
+        let val = Fixed::parse(s.as_bytes());
         assert_eq!("0", val.to_string())
     }
 
@@ -269,7 +281,7 @@ mod tests {
     #[test_case(".12345678")]
     #[test_case(".00000012")]
     fn parse_and_print(s: &str) {
-        let val = Fixed::from(s.as_bytes());
+        let val = Fixed::parse(s.as_bytes());
         assert_eq!(s, val.to_string())
     }
 
@@ -281,9 +293,9 @@ mod tests {
     #[test_case("0.3", "20", "20.3")]
     #[test_case("20", "0.3", "20.3")]
     fn add(lhs: &str, rhs: &str, expected: &str) {
-        let lhs = Fixed::from(lhs.as_bytes());
-        let rhs = Fixed::from(rhs.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes());
+        let rhs = Fixed::parse(rhs.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(&lhs + &rhs, expected)
     }
 
@@ -292,9 +304,9 @@ mod tests {
     #[test_case("20", "0.3", "6")]
     #[test_case("0.01", "0.003", "0.00003")]
     fn mul(lhs: &str, rhs: &str, expected: &str) {
-        let lhs = Fixed::from(lhs.as_bytes());
-        let rhs = Fixed::from(rhs.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes());
+        let rhs = Fixed::parse(rhs.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(&lhs * &rhs, expected)
     }
 
@@ -309,9 +321,9 @@ mod tests {
     fn div(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 8 }
 
-        let lhs = Fixed::from(lhs.as_bytes());
-        let rhs = Fixed::from(rhs.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes());
+        let rhs = Fixed::parse(rhs.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(&lhs / &rhs, expected)
     }
 
@@ -323,9 +335,9 @@ mod tests {
     fn rem(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 0 }
 
-        let lhs = Fixed::from(lhs.as_bytes());
-        let rhs = Fixed::from(rhs.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes());
+        let rhs = Fixed::parse(rhs.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(&lhs % &rhs, expected)
     }
 
@@ -335,9 +347,9 @@ mod tests {
     fn pow(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 0 }
 
-        let lhs = Fixed::from(lhs.as_bytes());
-        let rhs = Fixed::from(rhs.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes());
+        let rhs = Fixed::parse(rhs.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(lhs.checked_pow(&rhs).unwrap(), expected)
     }
 
@@ -347,8 +359,8 @@ mod tests {
     #[test_case("0.0004", "0.02")]
     fn sqrt(val: &str, expected: &str) {
         unsafe { PRECISION = 4 }
-        let val = Fixed::from(val.as_bytes());
-        let expected = Fixed::from(expected.as_bytes());
+        let val = Fixed::parse(val.as_bytes());
+        let expected = Fixed::parse(expected.as_bytes());
         assert_eq!(val.sqrt(), expected)
     }
 }

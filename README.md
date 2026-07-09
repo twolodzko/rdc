@@ -5,7 +5,7 @@ The [desk calculator `dc`] re-implemented in Rust. It supports unlimited precisi
 
 ## Commands
 
-T subset of `ds`'s commands is implemented:
+The following subset of `ds`'s commands is implemented:
 
 * `+`, `-`, `*`, `/`, `%` (reminder) arithmetic operations.
 * `^` is exponentiation, where the base needs to be an integer.
@@ -22,6 +22,7 @@ T subset of `ds`'s commands is implemented:
 * `x` pop the last value from the stack and execute it as a command, if it is a number, push it to the stack.
 * `>`*r*, `<`*r*, `=`*r*, `!>`*r*, `!<`*r*, `!=`*r* pop two values from the stack, compare them and conditionally execute the value at the record *r* as a command.
 * `[hello, world!]` is a string value equal to "hello, world!".
+* `q` exit program.
 
 See also the [`dc` manual].
 
