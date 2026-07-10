@@ -227,9 +227,7 @@ impl std::fmt::Display for Fixed {
         if self.precision > 0 {
             let s = self.value.to_string();
             if s.len() < self.precision as usize {
-                let n = self.precision as usize - s.len();
-                let z = "0".repeat(n);
-                write!(f, ".{}{}", z, s)
+                write!(f, ".{:0>prec$}", s, prec = self.precision as usize)
             } else {
                 let (int, frac) = s.split_at(s.len() - self.precision as usize);
                 write!(f, "{}.{}", int, frac)
