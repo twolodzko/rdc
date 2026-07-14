@@ -1,7 +1,7 @@
 # `dc` implemented in Rust
 
-The [desk calculator `dc`] re-implemented in Rust. It supports unlimited precision arithmetic using
-[fixed-point numbers] representation. Like `dc` it uses reverse-polish notation.
+The [desk calculator `dc`] re-implemented in Rust. It supports unlimited precision [fixed-point arithmetic].
+Like `dc` it uses reverse-polish notation.
 
 ## Numbers
 
@@ -33,5 +33,6 @@ The following subset of `ds`'s commands is implemented:
 See also the [`dc` manual].
 
 [desk calculator `dc`]: https://en.wikipedia.org/wiki/Dc_(computer_program)
-[fixed-point numbers]: https://en.wikipedia.org/wiki/Fixed-point_arithmetic
+[fixed-point arithmetic]: https://en.wikipedia.org/wiki/Fixed-point_arithmetic
+[fixed-point numbers]: https://web.archive.org/web/20020611080806/http://www.embedded.com/98/9804fe2.htm
 [`dc` manual]: https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html
