@@ -55,7 +55,7 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
             }
 
             match &cmds[i] {
-                // basic arithmetics
+                // basic arithmetic
                 b'+' => {
                     match memory.two_numbers() {
                         Ok((ref lhs, ref rhs)) => memory.stack.push(Number(lhs + rhs)),
