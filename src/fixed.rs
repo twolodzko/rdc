@@ -183,16 +183,17 @@ impl Div<&Fixed> for &Fixed {
 impl Rem<&Fixed> for &Fixed {
     type Output = Fixed;
 
+    /// Calculates reminder defined as a-(a/b)*b (or `Sr dlr/ Lr*-` in dc), where
+    /// "Remaindering is equivalent to 1) Computing a/b to current scale,
+    /// and 2) Using the result of step 1 to calculate a-(a/b)*b to scale max(scale+scale(b),scale(a))."
+    /// as described in the dc manual.
     fn rem(self, rhs: &Fixed) -> Self::Output {
-        // same as: Sr dlr/ Lr*-
-        // a - n * (a/n)
-
-        // TODO: From dc manual:
-        // Remaindering is equivalent to 1) Computing a/b to current scale,
-        // and 2) Using the result of step 1 to calculate a-(a/b)*b to scale max(scale+scale(b),scale(a)).
-
         let div = self / rhs;
-        let mul = rhs * &div;
+
+        let mut mul = Fixed::new(&div.value * &rhs.value, div.precision + rhs.precision);
+        let prec = (unsafe { PRECISION } + rhs.precision).max(self.precision);
+        mul.truncate_precision(prec);
+
         self - &mul
     }
 }
