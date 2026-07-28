@@ -61,7 +61,7 @@ impl Fixed {
         // and stored as an integer y=(x/n)*n
         // by the property of square root: sqrt(ab) = sqrt(a) * sqrt(b)
         // so if we want to keep the precision to be p, we need to take
-        // sqrt(y * n) = sqrt((x/n) * n * n) = sqrt(x/n) * n
+        // sqrt(y * n) = sqrt((x/n) * n * n) = sqrt(n/x) * sqrt(n^2) = sqrt(x/n) * n
         // so the scaling factor remains unchanged
 
         let value = (&self.value * self.scaling() * scaling.pow(2)).sqrt() / self.scaling();
