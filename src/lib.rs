@@ -3,6 +3,8 @@ mod fixed;
 
 pub use eval::eval;
 
+/// The precision (number of digits after the decimal point).
+/// Reading and writing it is always safe because there is no concurrency.
 static mut PRECISION: u32 = 0;
 
 #[derive(Debug)]
@@ -38,6 +40,7 @@ impl std::fmt::Display for Value {
         match self {
             Number(n) => write!(f, "{}", n),
             String(s) => {
+                //it's safe, it was read from the string
                 let s = unsafe { std::str::from_utf8_unchecked(s) };
                 write!(f, "{}", s)
             }

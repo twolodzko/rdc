@@ -14,6 +14,7 @@ macro_rules! error {
 }
 
 impl Memory {
+    /// Pop two numbers from the stack or fail
     fn two_numbers(&mut self) -> Result<(Fixed, Fixed), Error> {
         if let Some(rhs) = self.stack.pop()
             && let Some(lhs) = self.stack.pop()

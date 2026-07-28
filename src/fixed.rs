@@ -5,6 +5,7 @@ use std::{
     ops::{Add, Div, Mul, Neg, Rem, Sub},
 };
 
+/// Represents the floating-point number x as a ratio x = value / 10^precision
 #[derive(Debug, Clone)]
 pub struct Fixed {
     value: BigInt,
@@ -24,6 +25,8 @@ impl Fixed {
         Fixed { value, precision }
     }
 
+    /// Parse vector of bytes assuming that it contains
+    /// only of digits possibly separated by a single dot.
     pub fn parse(bytes: &[u8]) -> Fixed {
         let mut value = BigInt::ZERO;
         let mut precision = 0;
@@ -49,6 +52,7 @@ impl Fixed {
         Fixed::new(value, precision)
     }
 
+    /// Calculate square root. The scaling does not change.
     pub fn sqrt(&self) -> Fixed {
         if self.value == BigInt::ZERO {
             return self.clone();
@@ -57,17 +61,19 @@ impl Fixed {
         let scaling = BigInt::from(10).pow(prec);
 
         // the decimal number is represented by a fractional one x/n
-        // where n is the scaling factor 10^p and p is the precision (number of decimal points)
-        // and stored as an integer y=(x/n)*n
+        // where the scaling factor is n=10^p and p is the precision (number of decimal points)
+        // and the number stored as an integer y=(x/n)*n
         // by the property of square root: sqrt(ab) = sqrt(a) * sqrt(b)
         // so if we want to keep the precision to be p, we need to take
-        // sqrt(y * n) = sqrt((x/n) * n * n) = sqrt(n/x) * sqrt(n^2) = sqrt(x/n) * n
-        // so the scaling factor remains unchanged
+        // sqrt(y * n) = sqrt(x/n * n * n) = sqrt(n/x) * sqrt(n^2) = sqrt(x/n) * n
+        // so we need to multiply and divide by n for the scaling to remain unchanged
 
         let value = (&self.value * self.scaling() * scaling.pow(2)).sqrt() / self.scaling();
         Fixed::new(value, prec)
     }
 
+    /// Raise the value to the rhs power. Ignore the fractional part of the exponent.
+    /// The scale of the result is equal to scale.
     pub fn checked_pow(&self, rhs: &Fixed) -> Option<Fixed> {
         // keep integer part of exponent
         if let Ok(exp) = u32::try_from(rhs.value_truncated()) {
@@ -102,6 +108,7 @@ impl Fixed {
         self.value < BigInt::ZERO
     }
 
+    /// Make the precision not higher than `prec`
     fn truncate_precision(&mut self, prec: u32) {
         if self.precision > prec {
             self.value /= BigInt::from(10).pow(self.precision - prec);
@@ -114,6 +121,7 @@ impl Fixed {
         &self.value / self.scaling()
     }
 
+    /// The scaling factor needed to convert the fractional value to a float
     fn scaling(&self) -> BigInt {
         BigInt::from(10).pow(self.precision)
     }
@@ -124,6 +132,7 @@ impl Fixed {
     }
 }
 
+/// Re-scale the values to have the same precision
 fn unify_precision<'a, 'b>(lhs: &'a Fixed, rhs: &'b Fixed) -> (Cow<'a, BigInt>, Cow<'b, BigInt>) {
     use std::cmp::Ordering::*;
     match lhs.precision.cmp(&rhs.precision) {
@@ -144,6 +153,7 @@ macro_rules! impl_op {
         impl $trait<&Fixed> for &Fixed {
             type Output = Fixed;
 
+            /// Apply the operator. The scale of the result is equal to the max scale of both operands.
             fn $method(self, rhs: &Fixed) -> Self::Output {
                 let (a, b) = unify_precision(self, rhs);
                 Fixed::new(
@@ -161,6 +171,7 @@ impl_op!(Sub, sub);
 impl Mul<&Fixed> for &Fixed {
     type Output = Fixed;
 
+    /// Multiply two numbers with the precision max(scale,a,b)
     fn mul(self, rhs: &Fixed) -> Self::Output {
         let mut res = Fixed::new(&self.value * &rhs.value, self.precision + rhs.precision);
         let prec = unsafe { PRECISION }.max(self.precision).max(rhs.precision);
@@ -172,6 +183,7 @@ impl Mul<&Fixed> for &Fixed {
 impl Div<&Fixed> for &Fixed {
     type Output = Fixed;
 
+    /// Divide two numbers. The scale of the result is equal to scale.
     fn div(self, rhs: &Fixed) -> Self::Output {
         let prec = unsafe { PRECISION };
         let scaling = BigInt::from(10).pow(prec);
