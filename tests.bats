@@ -39,6 +39,12 @@ BINARY="./target/debug/rdc"
 	[ "$status" -eq 0 ]
 }
 
+@test "Print negative fraction correctly" {
+	run $BINARY '_.0324 p'
+	[ "$output" = "-.0324" ]
+	[ "$status" -eq 0 ]
+}
+
 @test "Push and print 0.000123456" {
 	run $BINARY '.000123456 p'
 	[ "$output" = ".000123456" ]

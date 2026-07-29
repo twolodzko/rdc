@@ -1,5 +1,5 @@
 use crate::PRECISION;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, Sign};
 use std::{
     borrow::Cow,
     ops::{Add, Div, Mul, Neg, Rem, Sub},
@@ -105,7 +105,7 @@ impl Fixed {
     }
 
     pub fn is_negative(&self) -> bool {
-        self.value < BigInt::ZERO
+        self.value.sign() == Sign::Minus
     }
 
     /// Make the precision not higher than `prec`
@@ -243,12 +243,25 @@ impl PartialOrd for Fixed {
 impl std::fmt::Display for Fixed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.precision > 0 {
-            let s = self.value.to_string();
-            if s.len() < self.precision as usize {
-                write!(f, ".{:0>prec$}", s, prec = self.precision as usize)
+            let mut str = self.value.to_string();
+            let sign = if self.is_negative() {
+                str = str[1..].to_string();
+                "-"
             } else {
-                let (int, frac) = s.split_at(s.len() - self.precision as usize);
-                write!(f, "{}.{}", int, frac)
+                ""
+            };
+
+            if str.len() < self.precision as usize {
+                write!(
+                    f,
+                    "{}.{:0>prec$}",
+                    sign,
+                    str,
+                    prec = self.precision as usize
+                )
+            } else {
+                let (int, frac) = str.split_at(str.len() - self.precision as usize);
+                write!(f, "{}{}.{}", sign, int, frac)
             }
         } else {
             write!(f, "{}", self.value)

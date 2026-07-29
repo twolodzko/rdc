@@ -6,7 +6,7 @@ unit-test: build-dev
 
 fuzzy-test: build-dev
     bash fuzzy_test.sh > fuzzy_test.log
-    tail -n 2 fuzzy_test.log
+    tail -n 8 fuzzy_test.log
 
 build:
     cargo build --release
