@@ -70,6 +70,7 @@ for _ in {1..10}; do
          for dy in {0..5}; do
             for op in '+' '-' '*' '/' '%' '^'; do
                if [ "$op" = '^' ]; then
+                  # dc would throw an error for non-integer exponent
                   dy=0
                fi
 
@@ -113,6 +114,45 @@ for _ in {1..10}; do
                   echo "OK"
                fi
             done
+         done
+      done
+   done
+done
+echo "====================================="
+
+echo "Test comparison operations"
+for _ in {1..10}; do
+   for dx in {0..5}; do
+      for dy in {0..5}; do
+         x="$(bc <<< "scale = $dx; $(($RANDOM % 1000)) / ($dx+1)")"
+         y="$(bc <<< "scale = $dy; $(($RANDOM % 1000)) / ($dy+1)")"
+
+         for op in '=' '<' '>' '!=' '!<' '!>'; do
+
+            cmd="[[yes]pq]sa $x $y ${op}a [no]p"
+            printf "Test:  %-25s  " "$cmd"
+
+            result="$($BINARY "$cmd")"
+            if [ $? -ne 0 ]; then
+               echo "Error: command $BINARY '$cmd' failed"
+               exit 1
+            fi
+
+            expected="$(dc -e "$cmd" | tr -d '\\ \n' )"
+            if [ $? -ne 0 ]; then
+               echo "Error: command dc -e '$cmd' failed"
+               exit 1
+            fi
+
+            if [ "$result" != "$expected" ]; then
+               echo "FAIL"
+               printf "#      got: %s\n" "$result"
+               printf "# expected: %s\n" "$expected"
+               FAILED=$((FAILED+1))
+            else
+               PASSED=$((PASSED+1))
+               echo "OK"
+            fi
          done
       done
    done
