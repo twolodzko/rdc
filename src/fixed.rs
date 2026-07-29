@@ -30,7 +30,7 @@ impl Fixed {
     pub fn parse(bytes: &[u8]) -> Fixed {
         let mut value = BigInt::ZERO;
         let mut precision = 0;
-        let mut base = BigInt::ONE;
+        let mut position = BigInt::ONE;
         let mut i = bytes.len();
         while i != 0 {
             i -= 1;
@@ -40,14 +40,14 @@ impl Fixed {
                     break;
                 }
                 b'0' => {}
-                v => value += &base * to_digit(v),
+                v => value += &position * to_digit(v),
             }
-            base *= 10;
+            position *= 10;
         }
         while i != 0 {
             i -= 1;
-            value += &base * to_digit(bytes[i]);
-            base *= 10;
+            value += &position * to_digit(bytes[i]);
+            position *= 10;
         }
         Fixed::new(value, precision)
     }
@@ -132,7 +132,7 @@ impl Fixed {
     }
 }
 
-/// Re-scale the values to have the same precision
+/// Re-scale the values to have the same precision (max of both)
 fn unify_precision<'a, 'b>(lhs: &'a Fixed, rhs: &'b Fixed) -> (Cow<'a, BigInt>, Cow<'b, BigInt>) {
     use std::cmp::Ordering::*;
     match lhs.precision.cmp(&rhs.precision) {
@@ -223,14 +223,16 @@ impl Neg for Fixed {
 
 impl PartialEq for Fixed {
     fn eq(&self, other: &Self) -> bool {
-        &self.value * BigInt::from(10).pow(other.precision)
-            == &other.value * BigInt::from(10).pow(self.precision)
+        let a = &self.value * other.scaling();
+        let b = &other.value * self.scaling();
+        a == b
     }
 }
 
 impl PartialOrd for Fixed {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let (a, b) = unify_precision(self, other);
+        let a = &self.value * other.scaling();
+        let b = &other.value * self.scaling();
         a.partial_cmp(&b)
     }
 }
