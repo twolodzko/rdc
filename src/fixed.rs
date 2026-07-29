@@ -171,10 +171,13 @@ impl_op!(Sub, sub);
 impl Mul<&Fixed> for &Fixed {
     type Output = Fixed;
 
-    /// Multiply two numbers with the precision max(scale,a,b)
+    /// Multiply two numbers with the precision min(a+b,max(scale,a,b))
     fn mul(self, rhs: &Fixed) -> Self::Output {
         let mut res = Fixed::new(&self.value * &rhs.value, self.precision + rhs.precision);
-        let prec = unsafe { PRECISION }.max(self.precision).max(rhs.precision);
+        let prec = unsafe { PRECISION }
+            .max(self.precision)
+            .max(rhs.precision)
+            .min(self.precision + rhs.precision);
         res.truncate_precision(prec);
         res
     }
