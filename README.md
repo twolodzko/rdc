@@ -29,6 +29,8 @@ The following subset of `ds`'s commands is implemented:
 * `>`*r*, `<`*r*, `=`*r*, `!>`*r*, `!<`*r*, `!=`*r* pop two values from the stack, compare them, and conditionally execute the value at the record *r* as a command.
 * `[hello, world!]` is a string value equal to "hello, world!".
 * `q` exit program.
+* `j` pop the last value from the stack and use it to set the seed of the pseudo-random number generator.
+* `'` generate a pseudo-random number using [LCG] and push it into the stack.
 
 See also the [`dc` manual].
 
@@ -36,3 +38,4 @@ See also the [`dc` manual].
 [fixed-point arithmetic]: https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 [fixed-point numbers]: https://web.archive.org/web/20020611080806/http://www.embedded.com/98/9804fe2.htm
 [`dc` manual]: https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html
+[LCG]: https://en.wikipedia.org/wiki/Linear_congruential_generator

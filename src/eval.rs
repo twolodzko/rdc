@@ -2,7 +2,10 @@ use crate::{Memory, PRECISION, Value, fixed::Fixed};
 use std::{
     io::{StdoutLock, Write},
     ops::Neg,
+    time::{SystemTime, UNIX_EPOCH},
 };
+
+static mut RNG_SEED: u32 = 1;
 
 macro_rules! error {
     ( $err:expr, $fail:tt ) => {
@@ -32,6 +35,13 @@ impl Memory {
 }
 
 pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool) -> bool {
+    if let Ok(s) = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+    {
+        unsafe { RNG_SEED = (s % u32::MAX as u128) as u32 }
+    }
+
     use Value::*;
     let mut queue = vec![(script.to_vec(), 0)];
     while let Some((mut cmds, mut i)) = queue.pop() {
@@ -375,6 +385,31 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                     }
                     let s = String(acc);
                     memory.stack.push(s);
+                }
+                // set the random seed
+                b'j' => {
+                    if let Some(v) = memory.stack.pop() {
+                        if let Number(v) = v {
+                            unsafe { RNG_SEED = v.to_u32_saturating() }
+                        } else {
+                            error!(Error::NaN, fail);
+                        }
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // generate random value
+                b'\'' => {
+                    // X[i+1] = a * X[i] + c (mod m)
+                    // using the C standard values for a and c and implicit m (wrapping)
+                    // see: https://en.wikipedia.org/wiki/Linear_congruential_generator
+                    let a: u32 = 1103515245;
+                    let c: u32 = 12345;
+                    let val = unsafe {
+                        RNG_SEED = c.wrapping_add(a.wrapping_mul(RNG_SEED));
+                        Fixed::new(RNG_SEED.into(), 0)
+                    };
+                    memory.stack.push(Number(val));
                 }
                 // comment
                 b'#' => {

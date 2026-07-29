@@ -18,7 +18,7 @@ impl Fixed {
         precision: 0,
     };
 
-    fn new(value: BigInt, mut precision: u32) -> Fixed {
+    pub fn new(value: BigInt, mut precision: u32) -> Fixed {
         if value == BigInt::ZERO {
             precision = 0
         }
@@ -126,7 +126,11 @@ impl Fixed {
         BigInt::from(10).pow(self.precision)
     }
 
+    /// Return the integer part of the number as u32 saturated at the boundaries
     pub fn to_u32_saturating(&self) -> u32 {
+        if self.is_negative() {
+            return 0;
+        }
         let val = self.value_truncated();
         u32::try_from(val).unwrap_or(u32::MAX)
     }
