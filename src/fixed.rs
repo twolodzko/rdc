@@ -223,16 +223,14 @@ impl Neg for Fixed {
 
 impl PartialEq for Fixed {
     fn eq(&self, other: &Self) -> bool {
-        let a = &self.value * other.scaling();
-        let b = &other.value * self.scaling();
+        let (a, b) = unify_precision(self, other);
         a == b
     }
 }
 
 impl PartialOrd for Fixed {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let a = &self.value * other.scaling();
-        let b = &other.value * self.scaling();
+        let (a, b) = unify_precision(self, other);
         a.partial_cmp(&b)
     }
 }
