@@ -15,12 +15,7 @@ pub struct Fixed {
 }
 
 impl Fixed {
-    pub const ZERO: Fixed = Fixed {
-        value: BigInt::ZERO,
-        precision: 0,
-    };
-
-    fn new(value: BigInt, mut precision: u32) -> Fixed {
+    pub fn new(value: BigInt, mut precision: u32) -> Fixed {
         if value == BigInt::ZERO {
             precision = 0
         }
@@ -54,7 +49,7 @@ impl Fixed {
         Fixed::new(value, precision)
     }
 
-    /// Calculate square root. The scaling does not change.
+    /// Calculate square root. The scale of the result is max(scale,a)
     pub fn sqrt(&self) -> Fixed {
         if self.value == BigInt::ZERO {
             return self.clone();
@@ -266,7 +261,10 @@ impl std::fmt::Display for Fixed {
 
 impl Default for Fixed {
     fn default() -> Self {
-        Fixed::ZERO
+        Fixed {
+            value: BigInt::ZERO,
+            precision: 0,
+        }
     }
 }
 

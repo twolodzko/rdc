@@ -30,7 +30,7 @@ pub enum Value {
 
 impl Default for Value {
     fn default() -> Self {
-        Value::Number(fixed::Fixed::ZERO)
+        Value::Number(Default::default())
     }
 }
 
