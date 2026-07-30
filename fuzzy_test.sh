@@ -31,9 +31,10 @@ for _ in {0..500}; do
       echo "OK"
    fi
 done
-echo "====================================="
 
+echo "====================================="
 echo "Test sqrt"
+
 for _ in {0..100}; do
    for prec in {0..5}; do
       s=$((RANDOM % 10))
@@ -70,10 +71,11 @@ for _ in {0..100}; do
       fi
    done
 done
-echo "====================================="
 
+echo "====================================="
 echo "Test bivariate operations"
-for _ in {1..500}; do
+
+for _ in {1..1000}; do
    for op in '+' '-' '*' '/' '%' '^'; do
       prec=$((RANDOM % 20))
       dx=$((RANDOM % 5))
@@ -129,16 +131,16 @@ for _ in {1..500}; do
       fi
    done
 done
+
 echo "====================================="
-
 echo "Test comparison operations"
-for _ in {1..500}; do
-   dx=$((RANDOM % 5))
-   x="$(bc <<< "scale = $dx; $((RANDOM % MAX_RAND)) / (10^$dx)")"
-   dy=$((RANDOM % 5))
-   y="$(bc <<< "scale = $dy; $((RANDOM % MAX_RAND)) / (10^$dy)")"
 
+for _ in {1..500}; do
    for op in '=' '<' '>' '!=' '!<' '!>'; do
+      dx=$((RANDOM % 5))
+      x="$(bc <<< "scale = $dx; $((RANDOM % MAX_RAND)) / (10^$dx)")"
+      dy=$((RANDOM % 5))
+      y="$(bc <<< "scale = $dy; $((RANDOM % MAX_RAND)) / (10^$dy)")"
 
       cmd="[[yes]pq]sa $x $y ${op}a [no]p"
       printf "Test:  %-25s  " "$cmd"
@@ -172,14 +174,14 @@ for _ in {1..500}; do
       fi
    done
 done
-echo "====================================="
 
+echo "====================================="
 TOTAL=$((FAILED + PASSED))
 echo "Passed: $PASSED  $((PASSED * 100 / TOTAL))%"
 echo "Failed: $FAILED  $((FAILED * 100 / TOTAL))%"
-echo "====================================="
 
+echo "====================================="
 echo "Runtimes:"
-echo "dc:  $DC_ELAPSED sec"
-echo "rdc: $RDC_ELAPSED sec"
+echo "dc:  $(echo "scale=2; $DC_ELAPSED / 1" | bc) sec"
+echo "rdc: $(echo "scale=2; $RDC_ELAPSED / 1" | bc) sec"
 echo "rdc/dc: $(echo "scale=3; $RDC_ELAPSED / $DC_ELAPSED" | bc -l)"

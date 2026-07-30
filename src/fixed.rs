@@ -75,21 +75,21 @@ impl Fixed {
     /// Raise the value to the rhs power. Ignore the fractional part of the exponent.
     /// The scale of the result is equal to scale.
     pub fn checked_pow(&self, rhs: &Fixed) -> Option<Fixed> {
-        // keep integer part of exponent
+        // keep only the integer part of exponent
         if let Ok(exp) = u32::try_from(rhs.value_truncated()) {
-            if exp == 0 {
-                return Some(Fixed {
+            match exp {
+                0 => Some(Fixed {
                     value: BigInt::ONE,
                     precision: 0,
-                });
+                }),
+                1 => Some(self.clone()),
+                _ => {
+                    let prec = unsafe { PRECISION }.max(self.precision);
+                    let mut pow = Fixed::new(self.value.pow(exp), self.precision * exp);
+                    pow.truncate_precision(prec);
+                    Some(pow)
+                }
             }
-            if exp == 1 {
-                return Some(self.clone());
-            }
-            let prec = unsafe { PRECISION }.max(self.precision);
-            let mut pow = Fixed::new(self.value.pow(exp), self.precision * exp);
-            pow.truncate_precision(prec);
-            Some(pow)
         } else {
             None
         }
