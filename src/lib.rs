@@ -40,8 +40,7 @@ impl std::fmt::Display for Value {
         match self {
             Number(n) => write!(f, "{}", n),
             String(s) => {
-                //it's safe, it was read from the string
-                let s = unsafe { std::str::from_utf8_unchecked(s) };
+                let s = std::string::String::from_utf8_lossy(s);
                 write!(f, "{}", s)
             }
         }
