@@ -133,6 +133,42 @@ for _ in {1..1000}; do
 done
 
 echo "====================================="
+echo "Factorial (loop)"
+
+for _ in {1..100}; do
+    cmd="$((RANDOM % 10000)) [d1-d1<F*]dsFxp"
+    printf "Test:  %-25s  " "$cmd"
+
+    start=$(date +%s.%N)
+    result="$($BINARY "$cmd")"
+    end=$(date +%s.%N)
+    RDC_ELAPSED=$(echo "$RDC_ELAPSED + $end - $start" | bc -l)
+    if [ $? -ne 0 ]; then
+        echo "Error: command $BINARY '$cmd' failed"
+        exit 1
+    fi
+
+    start=$(date +%s.%N)
+    expected="$(dc -e "$cmd" | tr -d '\\ \n' )"
+    end=$(date +%s.%N)
+    DC_ELAPSED=$(echo "$DC_ELAPSED + $end - $start" | bc -l)
+    if [ $? -ne 0 ]; then
+        echo "Error: command dc -e '$cmd' failed"
+        exit 1
+    fi
+
+    if [ "$result" != "$expected" ]; then
+        echo "FAIL"
+        printf "#      got: %s\n" "$result"
+        printf "# expected: %s\n" "$expected"
+        FAILED=$((FAILED+1))
+    else
+        PASSED=$((PASSED+1))
+        echo "OK"
+    fi
+done
+
+echo "====================================="
 echo "Test comparison operations"
 
 for _ in {1..500}; do
@@ -143,7 +179,7 @@ for _ in {1..500}; do
       y="$(bc <<< "scale = $dy; $((RANDOM % MAX_RAND)) / (10^$dy)")"
 
       cmd="[[yes]pq]sa $x $y ${op}a [no]p"
-      printf "Test:  %-25s  " "$cmd"
+      printf "Test:  %-40s  " "$cmd"
 
       start=$(date +%s.%N)
       result="$($BINARY "$cmd")"
