@@ -87,12 +87,13 @@ impl Fixed {
                 return Some(self.clone());
             }
             let prec = unsafe { PRECISION }.max(self.precision);
-            let scaling = BigInt::from(10).pow(prec);
-
-            let mut pow = Fixed::new((&self.value * &scaling).pow(exp), self.precision + prec);
-            if pow.precision > 0 {
-                pow.precision *= exp;
-            }
+            let (v, p) = if self.precision < prec {
+                let scaling = BigInt::from(10).pow(prec - self.precision);
+                (Cow::Owned(&self.value * &scaling), prec)
+            } else {
+                (Cow::Borrowed(&self.value), self.precision)
+            };
+            let mut pow = Fixed::new(v.pow(exp), p * exp);
             pow.truncate_precision(prec);
             Some(pow)
         } else {
