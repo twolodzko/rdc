@@ -5,6 +5,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Rem, Sub},
 };
 
+const TEN: BigInt = BigInt::new_const(10);
+
 /// Represents the floating-point number x as a ratio x = value / 10^precision
 #[derive(Debug, Clone)]
 pub struct Fixed {
@@ -67,7 +69,7 @@ impl Fixed {
         // so we need to multiply and divide by n for the scaling to remain unchanged
 
         let prec = self.precision.max(unsafe { PRECISION });
-        let scaling = BigInt::from(10).pow(2 * prec);
+        let scaling = TEN.pow(2 * prec);
         let value = (&self.value * self.scaling() * scaling).sqrt() / self.scaling();
         Fixed::new(value, prec)
     }
@@ -106,7 +108,7 @@ impl Fixed {
     /// Make the precision not higher than `prec`
     fn truncate_precision(&mut self, prec: u32) {
         if self.precision > prec {
-            self.value /= BigInt::from(10).pow(self.precision - prec);
+            self.value /= TEN.pow(self.precision - prec);
             self.precision = prec;
         }
     }
@@ -118,7 +120,7 @@ impl Fixed {
 
     /// The scaling factor needed to convert the fractional value to a float
     fn scaling(&self) -> BigInt {
-        BigInt::from(10).pow(self.precision)
+        TEN.pow(self.precision)
     }
 
     pub fn to_u32_saturating(&self) -> u32 {
@@ -132,13 +134,13 @@ fn unify_precision<'a, 'b>(lhs: &'a Fixed, rhs: &'b Fixed) -> (Cow<'a, BigInt>, 
     use std::cmp::Ordering::*;
     match lhs.precision.cmp(&rhs.precision) {
         Less => (
-            Cow::Owned(&lhs.value * BigInt::from(10).pow(rhs.precision - lhs.precision)),
+            Cow::Owned(&lhs.value * TEN.pow(rhs.precision - lhs.precision)),
             Cow::Borrowed(&rhs.value),
         ),
         Equal => (Cow::Borrowed(&lhs.value), Cow::Borrowed(&rhs.value)),
         Greater => (
             Cow::Borrowed(&lhs.value),
-            Cow::Owned(&rhs.value * BigInt::from(10).pow(lhs.precision - rhs.precision)),
+            Cow::Owned(&rhs.value * TEN.pow(lhs.precision - rhs.precision)),
         ),
     }
 }
@@ -184,7 +186,7 @@ impl Div<&Fixed> for &Fixed {
     /// Divide two numbers. The scale of the result is equal to scale.
     fn div(self, rhs: &Fixed) -> Self::Output {
         let prec = unsafe { PRECISION };
-        let scaling = BigInt::from(10).pow(prec);
+        let scaling = TEN.pow(prec);
         let (a, b) = unify_precision(self, rhs);
         Fixed::new(a.as_ref() * &scaling / b.as_ref(), prec)
     }
