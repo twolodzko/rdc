@@ -8,6 +8,11 @@ fuzzy-test: build-dev
     bash fuzzy_test.sh > fuzzy_test.log
     tail -n 8 fuzzy_test.log
 
+benchmark: install
+    hyperfine \
+        "dc -e '10000 [d1-d1<F*]dsFxp'" \
+        "rdc '10000 [d1-d1<F*]dsFxp'"
+
 build:
     cargo build --release
     cp target/release/rdc .
