@@ -58,7 +58,6 @@ impl Fixed {
             return self.clone();
         }
         let prec = self.precision.max(unsafe { PRECISION });
-        let scaling = BigInt::from(10).pow(prec);
 
         // the decimal number is represented by a fractional one x/n
         // where the scaling factor is n=10^p and p is the precision (number of decimal points)
@@ -68,7 +67,8 @@ impl Fixed {
         // sqrt(y * n) = sqrt(x/n * n * n) = sqrt(n/x) * sqrt(n^2) = sqrt(x/n) * n
         // so we need to multiply and divide by n for the scaling to remain unchanged
 
-        let value = (&self.value * self.scaling() * scaling.pow(2)).sqrt() / self.scaling();
+        let scaling = BigInt::from(10).pow(2 * prec);
+        let value = (&self.value * self.scaling() * scaling).sqrt() / self.scaling();
         Fixed::new(value, prec)
     }
 
