@@ -1,4 +1,4 @@
-use rdc::{Memory, eval};
+use rdc::{IO_EXIT, Memory, eval};
 use rustyline::{Config, DefaultEditor, error::ReadlineError};
 use std::io::Write;
 
@@ -11,7 +11,7 @@ fn main() {
         let config = Config::builder().auto_add_history(true).build();
         let Ok(mut reader) = DefaultEditor::with_config(config) else {
             eprintln!("Error: failed to initialize repl");
-            std::process::exit(74);
+            std::process::exit(IO_EXIT);
         };
         loop {
             let line = match reader.readline("") {
@@ -19,7 +19,7 @@ fn main() {
                 Err(ReadlineError::Eof | ReadlineError::Interrupted) => return,
                 Err(err) => {
                     eprintln!("Error: {}", err);
-                    std::process::exit(74);
+                    std::process::exit(IO_EXIT);
                 }
             };
             eval(line.as_bytes(), &mut memory, out, false);
@@ -28,7 +28,7 @@ fn main() {
         if args[1] == "-h" || args[1] == "--help" {
             let help = "is a reverse-polish notation command-line calculator which supports unlimited precision arithmetic. It uses the same syntax as dc.";
             if writeln!(out, "Usage: {} [SCRIPT]..\n\n{} {}", args[0], args[0], help).is_err() {
-                std::process::exit(74);
+                std::process::exit(IO_EXIT);
             }
             return;
         }

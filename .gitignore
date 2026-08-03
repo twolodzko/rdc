@@ -24,5 +24,8 @@ target
 # Added by cargo
 
 /target
+
+# Other
+
 rdc
-fuzzy_test.log
+/*.log

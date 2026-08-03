@@ -4,9 +4,14 @@ unit-test: build-dev
     cargo test
     bats tests.bats
 
-fuzzy-test: build-dev
+fuzzy-test: build
     bash fuzzy_test.sh > fuzzy_test.log
-    tail -n 2 fuzzy_test.log
+    tail -n 8 fuzzy_test.log
+
+benchmark: install
+    hyperfine \
+        "dc -e '10000 [d1-d1<F*]dsFxp'" \
+        "rdc '10000 [d1-d1<F*]dsFxp'"
 
 build:
     cargo build --release
@@ -25,11 +30,11 @@ install: lint
 repl:
     cargo run --
 
-compare cmd: build-dev
+compare cmd:
     #!/bin/bash
     set -e
-    echo "dc -e '{{ cmd }}'               # => $(dc -e '{{ cmd }}')"
-    echo "./target/debug/rdc '{{ cmd }}'  # => $(./target/debug/rdc '{{ cmd }}')"
+    echo "dc -e '{{ cmd }}'         # => $(dc -e '{{ cmd }}')"
+    echo "cargo run -- '{{ cmd }}'  # => $(./target/debug/rdc '{{ cmd }}')"
 
 clean:
     rm -rf ./target
