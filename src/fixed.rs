@@ -154,6 +154,9 @@ impl Fixed {
     }
 
     pub fn to_u32_saturating(&self) -> u32 {
+        if self.is_negative() {
+            return 0;
+        }
         let val = self.value_truncated();
         u32::try_from(val).unwrap_or(u32::MAX)
     }
