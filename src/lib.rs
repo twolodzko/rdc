@@ -3,9 +3,14 @@ mod fixed;
 
 pub use eval::eval;
 
+/// Exit code for the I/O issues
+pub const IO_EXIT: i32 = 2;
+
 /// The precision (number of digits after the decimal point).
 /// Reading and writing it is always safe because there is no concurrency.
 static mut PRECISION: u32 = 0;
+static mut OUTPUT_RADIX: u32 = 10;
+static mut INPUT_RADIX: u32 = 10;
 
 #[derive(Debug)]
 pub struct Memory {

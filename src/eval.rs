@@ -1,4 +1,4 @@
-use crate::{Memory, PRECISION, Value, fixed::Fixed};
+use crate::{INPUT_RADIX, IO_EXIT, Memory, OUTPUT_RADIX, PRECISION, Value, fixed::Fixed};
 use std::{
     io::{StdoutLock, Write},
     ops::Neg,
@@ -165,7 +165,7 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                 b'p' => {
                     if let Some(val) = memory.stack.pop() {
                         let Ok(_) = writeln!(out, "{}", val) else {
-                            std::process::exit(74);
+                            std::process::exit(IO_EXIT);
                         };
                     } else {
                         error!(Error::EmptyStack, fail);
@@ -175,7 +175,7 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                 b'n' => {
                     if let Some(val) = memory.stack.pop() {
                         let Ok(_) = write!(out, "{}", val) else {
-                            std::process::exit(74);
+                            std::process::exit(IO_EXIT);
                         };
                     } else {
                         error!(Error::EmptyStack, fail);
@@ -192,7 +192,7 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                             });
                         s.pop();
                         if writeln!(out, "{}", s).is_err() {
-                            std::process::exit(74);
+                            std::process::exit(IO_EXIT);
                         }
                     }
                 }
@@ -200,6 +200,22 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                 b'k' => {
                     if let Some(Number(n)) = memory.stack.pop() {
                         unsafe { PRECISION = n.to_u32_saturating() }
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // set input radix
+                b'i' => {
+                    if let Some(Number(n)) = memory.stack.pop() {
+                        unsafe { INPUT_RADIX = n.to_u32_saturating().clamp(2, 16) }
+                    } else {
+                        error!(Error::EmptyStack, fail);
+                    }
+                }
+                // set output radix
+                b'o' => {
+                    if let Some(Number(n)) = memory.stack.pop() {
+                        unsafe { OUTPUT_RADIX = n.to_u32_saturating().clamp(2, 16) }
                     } else {
                         error!(Error::EmptyStack, fail);
                     }
@@ -408,7 +424,8 @@ pub fn eval(script: &[u8], memory: &mut Memory, out: &mut StdoutLock, fail: bool
                             i += 1;
                         }
                     }
-                    let mut val = Fixed::parse(&cmds[start..i]);
+                    let radix = unsafe { INPUT_RADIX };
+                    let mut val = Fixed::parse(&cmds[start..i], radix);
                     if negate {
                         val = val.neg();
                     }

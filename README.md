@@ -9,6 +9,12 @@ The [fixed-point numbers] are represented by integer part and fractional part, u
 for example `3.14159` or `42` are valid numbers. The exponential notation used commonly for floating-point
 numbers is not supported. Negative numbers are prefixed by `_`, for example `_5`.
 
+## Numbers
+
+The [fixed-point numbers] are represented by integer part and fractional part, using dot as a deliminator,
+for example `3.14159` or `42` are valid numbers. The exponential notation used commonly for floating-point
+numbers is not supported. Negative numbers are prefixed by `_`, for example `_5`.
+
 ## Commands
 
 The following subset of `ds`'s commands is implemented:
@@ -28,6 +34,7 @@ The following subset of `ds`'s commands is implemented:
 * `x` pop the last value from the stack and execute it as a command, if it is a number, push it to the stack.
 * `>`*r*, `<`*r*, `=`*r*, `!>`*r*, `!<`*r*, `!=`*r* pop two values from the stack, compare them, and conditionally execute the value at the record *r* as a command.
 * `[hello, world!]` is a string value equal to "hello, world!".
+* `i`, `o` pop the last value from the stack and use it as input or output radix (2 to 16).
 * `q` exit program.
 
 See also the [`dc` manual].

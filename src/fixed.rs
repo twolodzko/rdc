@@ -1,4 +1,4 @@
-use crate::PRECISION;
+use crate::{OUTPUT_RADIX, PRECISION};
 use num_bigint::{BigInt, Sign};
 use std::{
     borrow::Cow,
@@ -24,10 +24,11 @@ impl Fixed {
 
     /// Parse vector of bytes assuming that it contains
     /// only of digits possibly separated by a single dot.
-    pub fn parse(bytes: &[u8]) -> Fixed {
+    pub fn parse(bytes: &[u8], radix: u32) -> Fixed {
         let mut value = BigInt::ZERO;
         let mut precision = 0;
         let mut position = BigInt::ONE;
+        let base = BigInt::from(radix);
         let mut i = bytes.len();
         while i != 0 {
             i -= 1;
@@ -39,17 +40,51 @@ impl Fixed {
                 b'0' => {}
                 v => value += &position * to_digit(v),
             }
-            position *= 10;
+            position *= &base;
         }
         while i != 0 {
             i -= 1;
             value += &position * to_digit(bytes[i]);
-            position *= 10;
+            position *= &base;
+        }
+        if precision > 0 && radix != 10 {
+            value = value * TEN.pow(precision) / base.pow(precision);
         }
         Fixed::new(value, precision)
     }
 
-    /// Calculate square root. The scale of the result is max(scale,a)
+    fn to_string_radix(&self, radix: u32) -> String {
+        let (sign, value) = if self.is_negative() {
+            ("-", self.value.clone().neg())
+        } else {
+            ("", self.value.clone())
+        };
+        if self.precision == 0 {
+            format!("{}{}", sign, int_to_string(value, radix))
+        } else {
+            let digits = count_digits(value.clone());
+            if digits < self.precision {
+                let s = frac_to_string(value, radix, self.precision);
+                format!("{}.{}", sign, s)
+            } else if radix == 10 {
+                let s = value.to_string();
+                let (mut int, frac) = s.split_at(s.len() - self.precision as usize);
+                if int == "0" {
+                    int = "";
+                }
+                format!("{}{}.{}", sign, int, frac)
+            } else {
+                let base = TEN.pow(self.precision);
+                let mut int = int_to_string(&value / &base, radix);
+                let frac = frac_to_string(&value % &base, radix, self.precision);
+                if int == "0" {
+                    int.clear();
+                }
+                format!("{}{}.{}", sign, int, frac)
+            }
+        }
+    }
+
     pub fn sqrt(&self) -> Fixed {
         if self.value == BigInt::ZERO {
             return self.clone();
@@ -232,30 +267,8 @@ impl PartialOrd for Fixed {
 
 impl std::fmt::Display for Fixed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.precision > 0 {
-            let mut str = self.value.to_string();
-            let sign = if self.is_negative() {
-                str = str[1..].to_string();
-                "-"
-            } else {
-                ""
-            };
-
-            if str.len() < self.precision as usize {
-                write!(
-                    f,
-                    "{}.{:0>prec$}",
-                    sign,
-                    str,
-                    prec = self.precision as usize
-                )
-            } else {
-                let (int, frac) = str.split_at(str.len() - self.precision as usize);
-                write!(f, "{}{}.{}", sign, int, frac)
-            }
-        } else {
-            write!(f, "{}", self.value)
-        }
+        let radix = unsafe { OUTPUT_RADIX };
+        write!(f, "{}", self.to_string_radix(radix))
     }
 }
 
@@ -266,6 +279,68 @@ impl Default for Fixed {
             precision: 0,
         }
     }
+}
+
+fn count_digits(mut n: BigInt) -> u32 {
+    debug_assert!(n >= BigInt::ZERO);
+    if n == BigInt::ZERO {
+        return 1;
+    }
+    // calculates floor(log10(n))
+    let mut count = 0;
+    while n != BigInt::ZERO {
+        n /= 10;
+        count += 1;
+    }
+    count
+}
+
+fn int_to_string(mut x: BigInt, radix: u32) -> String {
+    debug_assert!(x >= BigInt::ZERO);
+    if radix == 10 {
+        return x.to_string();
+    }
+    // https://stackoverflow.com/a/50278316
+    let mut acc = String::new();
+    loop {
+        let d = u32::try_from(&x % radix).unwrap();
+        acc.push(char_from_digit(d, radix));
+        x /= radix;
+        if x == BigInt::ZERO {
+            break;
+        }
+    }
+    unsafe {
+        acc.as_mut_vec().reverse();
+    }
+    acc
+}
+
+fn frac_to_string(mut x: BigInt, radix: u32, digits: u32) -> String {
+    debug_assert!(x >= BigInt::ZERO);
+    if radix == 10 {
+        return format!("{:0>prec$}", x, prec = digits as usize);
+    }
+    // https://stackoverflow.com/a/20651123
+    // https://www.electronics-tutorials.ws/binary/binary-fractions.html
+    let base = TEN.pow(digits);
+    let mut done = base.clone();
+    let mut acc = String::new();
+    while x != BigInt::ZERO && done > BigInt::ZERO {
+        x *= radix;
+        let d = u32::try_from(&x / &base).unwrap();
+        acc.push(char_from_digit(d, radix));
+        x %= &base;
+        done /= radix;
+    }
+    acc
+}
+
+/// Produces an uppercase char representation of a digit
+fn char_from_digit(n: u32, radix: u32) -> char {
+    std::char::from_digit(n, radix)
+        .unwrap()
+        .to_ascii_uppercase()
 }
 
 /// Convert string byte to digit in hexadecimal notation, all other values are zeros
@@ -290,7 +365,7 @@ mod tests {
     #[test_case("000000"; "multiple")]
     #[test_case("000000.000"; "multiple with middle dot")]
     fn parse_zeros(s: &str) {
-        let val = Fixed::parse(s.as_bytes());
+        let val = Fixed::parse(s.as_bytes(), 10);
         assert_eq!("0", val.to_string())
     }
 
@@ -303,7 +378,7 @@ mod tests {
     #[test_case(".12345678")]
     #[test_case(".00000012")]
     fn parse_and_print(s: &str) {
-        let val = Fixed::parse(s.as_bytes());
+        let val = Fixed::parse(s.as_bytes(), 10);
         assert_eq!(s, val.to_string())
     }
 
@@ -315,9 +390,9 @@ mod tests {
     #[test_case("0.3", "20", "20.3")]
     #[test_case("20", "0.3", "20.3")]
     fn add(lhs: &str, rhs: &str, expected: &str) {
-        let lhs = Fixed::parse(lhs.as_bytes());
-        let rhs = Fixed::parse(rhs.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes(), 10);
+        let rhs = Fixed::parse(rhs.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(&lhs + &rhs, expected)
     }
 
@@ -326,9 +401,9 @@ mod tests {
     #[test_case("20", "0.3", "6")]
     #[test_case("0.01", "0.003", "0.00003")]
     fn mul(lhs: &str, rhs: &str, expected: &str) {
-        let lhs = Fixed::parse(lhs.as_bytes());
-        let rhs = Fixed::parse(rhs.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes(), 10);
+        let rhs = Fixed::parse(rhs.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(&lhs * &rhs, expected)
     }
 
@@ -343,9 +418,9 @@ mod tests {
     fn div(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 8 }
 
-        let lhs = Fixed::parse(lhs.as_bytes());
-        let rhs = Fixed::parse(rhs.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes(), 10);
+        let rhs = Fixed::parse(rhs.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(&lhs / &rhs, expected)
     }
 
@@ -357,9 +432,9 @@ mod tests {
     fn rem(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 0 }
 
-        let lhs = Fixed::parse(lhs.as_bytes());
-        let rhs = Fixed::parse(rhs.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes(), 10);
+        let rhs = Fixed::parse(rhs.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(&lhs % &rhs, expected)
     }
 
@@ -369,9 +444,9 @@ mod tests {
     fn pow(lhs: &str, rhs: &str, expected: &str) {
         unsafe { PRECISION = 0 }
 
-        let lhs = Fixed::parse(lhs.as_bytes());
-        let rhs = Fixed::parse(rhs.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let lhs = Fixed::parse(lhs.as_bytes(), 10);
+        let rhs = Fixed::parse(rhs.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(lhs.checked_pow(&rhs).unwrap(), expected)
     }
 
@@ -381,8 +456,8 @@ mod tests {
     #[test_case("0.0004", "0.02")]
     fn sqrt(val: &str, expected: &str) {
         unsafe { PRECISION = 4 }
-        let val = Fixed::parse(val.as_bytes());
-        let expected = Fixed::parse(expected.as_bytes());
+        let val = Fixed::parse(val.as_bytes(), 10);
+        let expected = Fixed::parse(expected.as_bytes(), 10);
         assert_eq!(val.sqrt(), expected)
     }
 }
