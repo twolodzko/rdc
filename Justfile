@@ -34,7 +34,7 @@ compare cmd:
     #!/bin/bash
     set -e
     echo "dc -e '{{ cmd }}'         # => $(dc -e '{{ cmd }}')"
-    echo "cargo run -- '{{ cmd }}'  # => $(./target/debug/rdc '{{ cmd }}')"
+    echo "cargo run -- '{{ cmd }}'  # => $(cargo run -- '{{ cmd }}')"
 
 clean:
     rm -rf ./target

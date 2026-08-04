@@ -5,15 +5,12 @@ Like `dc` it uses reverse-polish notation.
 
 ## Numbers
 
-The [fixed-point numbers] are represented by integer part and fractional part, using dot as a deliminator,
-for example `3.14159` or `42` are valid numbers. The exponential notation used commonly for floating-point
-numbers is not supported. Negative numbers are prefixed by `_`, for example `_5`.
-
-## Numbers
-
-The [fixed-point numbers] are represented by integer part and fractional part, using dot as a deliminator,
-for example `3.14159` or `42` are valid numbers. The exponential notation used commonly for floating-point
-numbers is not supported. Negative numbers are prefixed by `_`, for example `_5`.
+The [fixed-point numbers] are represented by integer part and fractional part, using dot as a deliminator.
+The digits of a number can be numerical characters 0 to 9 and uppercase characters A to F (11 to 15).
+The numbers are represented as decimals, but for reading or writing the base can be changed to a value
+in the 2-16 range (see below). For example 3.14159, 42, DEAD.BEEF, or 1011.1101 are valid numbers.
+The exponential notation used commonly for floating-point numbers is not supported. Negative numbers
+are prefixed by `_`, for example _5.
 
 ## Commands
 
