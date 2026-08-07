@@ -8,10 +8,10 @@ fuzzy-test: build
     bash fuzzy_test.sh > fuzzy_test.log
     tail -n 8 fuzzy_test.log
 
-benchmark: install
+benchmark: build
     hyperfine \
         "dc -e '10000 [d1-d1<F*]dsFxp'" \
-        "rdc '10000 [d1-d1<F*]dsFxp'"
+        "./rdc '10000 [d1-d1<F*]dsFxp'"
 
 build:
     cargo build --release
@@ -34,8 +34,9 @@ compare cmd:
     #!/bin/bash
     set -e
     echo "dc -e '{{ cmd }}'         # => $(dc -e '{{ cmd }}')"
-    echo "cargo run -- '{{ cmd }}'  # => $(./target/debug/rdc '{{ cmd }}')"
+    echo "cargo run -- '{{ cmd }}'  # => $(cargo run -- '{{ cmd }}')"
 
 clean:
     rm -rf ./target
     rm -rf ./rdc
+    rm -rf *.log

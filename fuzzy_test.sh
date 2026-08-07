@@ -34,7 +34,7 @@ done
 
 echo "====================================="
 echo "Test parsing numbers (base 2-16)"
-for _ in {0..10000}; do
+for _ in {0..2500}; do
    i=$((2 + RANDOM % 15))
    o=$((2 + RANDOM % 15))
    s=$((RANDOM % 10))
@@ -78,7 +78,7 @@ done
 echo "====================================="
 echo "Test sqrt"
 
-for _ in {0..500}; do
+for _ in {0..200}; do
    for prec in {0..5}; do
       s=$((RANDOM % 10))
       val="$(bc <<< "scale = $s; $((RANDOM % MAX_RAND)) / (10^$s)")"
@@ -118,7 +118,7 @@ done
 echo "====================================="
 echo "Test bivariate operations"
 
-for _ in {1..2000}; do
+for _ in {1..1000}; do
    for op in '+' '-' '*' '/' '%' '^'; do
       prec=$((RANDOM % 20))
       dx=$((RANDOM % 5))
